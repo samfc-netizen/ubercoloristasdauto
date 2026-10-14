@@ -13,7 +13,14 @@ st.set_page_config(page_title='BI de Viagens | Única Atacadista', page_icon='�
 st.markdown("""<style>
 .stApp{background:#f5f7fb;color:#18263b}
 section[data-testid="stSidebar"]{background:#ffffff;border-right:1px solid #e1e7ef}
-.block-container{padding-top:1.6rem;max-width:1550px}
+.block-container{padding-top:1.2rem;max-width:1900px}
+/* Escala visual compacta, sem alterar o zoom do navegador. */
+html{font-size:12px}
+.stApp p,.stApp label{font-size:.91rem}
+div[data-testid="stMetric"]{padding:12px;border-radius:13px}
+div[data-testid="stMetricValue"]{font-size:1.65rem}
+section[data-testid="stSidebar"]{min-width:235px!important;max-width:235px!important}
+[data-testid="stDataFrame"]{box-shadow:0 5px 22px rgba(24,44,75,.06)}
 div[data-testid="stMetric"]{background:#ffffff;border:1px solid #e1e7ef;border-radius:16px;padding:18px;box-shadow:0 3px 14px rgba(24,44,75,.05)}
 div[data-testid="stMetricLabel"]{color:#617187}
 div[data-testid="stMetricValue"]{color:#163c68}
@@ -196,14 +203,32 @@ with v4:
         return 'https://www.google.com/maps/search/?api=1&query='+quote(address,safe='')
     show['Mapa origem']=detail.loc[show.index,'Origem'].map(maps_url)
     show['Mapa destino']=detail.loc[show.index,'Destino'].map(maps_url)
-    st.caption('Clique em **Abrir origem** ou **Abrir destino** para localizar o endereço no Google Maps.')
+    st.caption('Endereços com acesso ao Google Maps. Clique em **📍 Origem** ou **📍 Destino**.')
     st.dataframe(show,use_container_width=True,hide_index=True,height=480,column_config={
-        'Mapa origem':st.column_config.LinkColumn('Mapa origem',display_text='Abrir origem'),
-        'Mapa destino':st.column_config.LinkColumn('Mapa destino',display_text='Abrir destino')
+        'Data':st.column_config.TextColumn('Data',width='small'),
+        'Hora':st.column_config.TextColumn('Hora',width='small'),
+        'Usuário':st.column_config.TextColumn('Colaborador',width='medium'),
+        'Origem':st.column_config.TextColumn('📍 Endereço de origem',width='large'),
+        'Destino':st.column_config.TextColumn('🏁 Endereço de destino',width='large'),
+        'Valor':st.column_config.TextColumn('Valor da viagem',width='small'),
+        'Mapa origem':st.column_config.LinkColumn('📍 Origem',display_text='Abrir mapa',width='small'),
+        'Mapa destino':st.column_config.LinkColumn('📍 Destino',display_text='Abrir mapa',width='small')
     })
     st.subheader('Trajetos mais recorrentes')
     routes=detail.groupby(['Origem','Destino'],as_index=False).agg(Viagens=('Valor','size'),Gasto=('Valor','sum'),Ticket_médio=('Valor','mean')).sort_values(['Viagens','Gasto'],ascending=False).head(25)
-    st.dataframe(routes,use_container_width=True,hide_index=True,column_config={'Gasto':st.column_config.NumberColumn('Gasto',format='R$ %.2f'),'Ticket_médio':st.column_config.NumberColumn('Ticket médio',format='R$ %.2f')})
+    routes['Mapa origem']=routes['Origem'].map(maps_url)
+    routes['Mapa destino']=routes['Destino'].map(maps_url)
+    routes=routes.rename(columns={'Ticket_médio':'Ticket médio'})
+    st.caption('Ranking de rotas por frequência. Os botões de mapa abrem cada endereço no Google Maps.')
+    st.dataframe(routes,use_container_width=True,hide_index=True,height=460,column_config={
+        'Origem':st.column_config.TextColumn('📍 Origem',width='large'),
+        'Destino':st.column_config.TextColumn('🏁 Destino',width='large'),
+        'Viagens':st.column_config.NumberColumn('Viagens',format='%d',width='small'),
+        'Gasto':st.column_config.NumberColumn('Gasto total',format='R$ %.2f',width='small'),
+        'Ticket médio':st.column_config.NumberColumn('Ticket médio',format='R$ %.2f',width='small'),
+        'Mapa origem':st.column_config.LinkColumn('📍 Mapa origem',display_text='Ver mapa',width='small'),
+        'Mapa destino':st.column_config.LinkColumn('📍 Mapa destino',display_text='Ver mapa',width='small')
+    })
     st.download_button('⬇️ Baixar viagens exibidas (Excel)',excel_bytes({'Viagens':detail[['Data','Hora','Usuário','Origem','Destino','Serviço','Tipo','Valor']]}),'viagens_detalhadas.xlsx',mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 with v5:
     st.subheader('Exportar análise completa')
