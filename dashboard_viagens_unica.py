@@ -83,9 +83,10 @@ with st.sidebar:
     st.header('⚙️ Fonte de dados')
     uploaded=st.file_uploader('Importar relatórios Uber CSV',type=['csv'],accept_multiple_files=True,help='Aceita vários arquivos; consolida e remove transações duplicadas.')
     st.caption('Para carregar dados automaticamente no Streamlit Cloud, coloque os arquivos CSV na pasta dados_viagens do repositório.')
-    local=list(Path('dados_viagens').glob('*.csv')) if Path('dados_viagens').exists() else []
-    files=list(uploaded) if uploaded else local
-    if uploaded and local and st.checkbox('Somar também os arquivos da pasta local',value=False):files+=local
+    data_dir=Path(__file__).resolve().parent / 'dados_viagens'
+    local=sorted(data_dir.glob('*.csv'), key=lambda p:(0,int(p.stem)) if p.stem.isdigit() else (1,p.name.lower())) if data_dir.exists() else []
+    files=local+list(uploaded or [])
+    st.caption(f'{len(local)} arquivo(s) CSV no repositório. Arquivos enviados aqui são somados à base, com remoção de duplicatas.')
     df=load_files(files) if files else pd.DataFrame()
     if df.empty:
         st.info('Importe os dois arquivos CSV no menu lateral para iniciar a análise. Você também pode deixar os arquivos na pasta dados_viagens para carregamento automático.')
