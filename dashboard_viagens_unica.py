@@ -1,4 +1,5 @@
 import io
+import html
 import re
 import unicodedata
 from urllib.parse import quote
@@ -11,25 +12,95 @@ import streamlit as st
 
 st.set_page_config(page_title='BI de Viagens | Única Atacadista', page_icon='🚕', layout='wide', initial_sidebar_state='expanded')
 st.markdown("""<style>
-.stApp{background:#f5f7fb;color:#18263b}
-section[data-testid="stSidebar"]{background:#ffffff;border-right:1px solid #e1e7ef}
-.block-container{padding-top:1.2rem;max-width:1900px}
-/* Escala visual compacta, sem alterar o zoom do navegador. */
-html{font-size:12px}
-.stApp p,.stApp label{font-size:.91rem}
-div[data-testid="stMetric"]{padding:12px;border-radius:13px}
-div[data-testid="stMetricValue"]{font-size:1.65rem}
-section[data-testid="stSidebar"]{min-width:235px!important;max-width:235px!important}
-[data-testid="stDataFrame"]{box-shadow:0 5px 22px rgba(24,44,75,.06)}
-div[data-testid="stMetric"]{background:#ffffff;border:1px solid #e1e7ef;border-radius:16px;padding:18px;box-shadow:0 3px 14px rgba(24,44,75,.05)}
-div[data-testid="stMetricLabel"]{color:#617187}
-div[data-testid="stMetricValue"]{color:#163c68}
-h1,h2,h3{color:#183657!important}
-.stTabs [data-baseweb="tab-list"]{gap:8px}
-.stTabs [data-baseweb="tab"]{background:#eaf0f8;border-radius:10px 10px 0 0;padding:10px 15px}
-.stTabs [aria-selected="true"]{background:#ffffff!important}
-div[data-testid="stDataFrame"]{border:1px solid #dce5f0;border-radius:12px;overflow:hidden}
+:root{--navy:#173456;--muted:#718096;--line:#e4eaf2;--blue:#2563eb}
+.stApp{background:#f5f7fb;color:#1d304a}
+section[data-testid="stSidebar"]{background:#fff;border-right:1px solid var(--line)}
+.block-container{padding-top:1.2rem;padding-bottom:3rem;max-width:1780px}
+html{font-size:13px}
+h1,h2,h3{color:#183657!important;letter-spacing:-.02em}
+h1{font-weight:800!important}
+[data-testid="stMetric"]{background:#fff;border:1px solid var(--line);border-radius:17px;padding:18px;box-shadow:0 5px 18px rgba(22,44,78,.045)}
+[data-testid="stMetricLabel"]{color:#66788f}
+[data-testid="stMetricValue"]{color:#163c68;font-size:1.65rem}
+.stTabs [data-baseweb="tab-list"]{gap:6px;border-bottom:1px solid var(--line)}
+.stTabs [data-baseweb="tab"]{border-radius:11px 11px 0 0;padding:11px 16px;color:#50647d}
+.stTabs [aria-selected="true"]{background:#fff!important;color:#1555a1!important}
+[data-testid="stDataFrame"]{border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 4px 14px rgba(22,44,78,.035)}
+[data-testid="stVerticalBlockBorderWrapper"]{border-radius:17px!important}
+.bi-section{padding:13px 0 8px}.bi-section h3{margin:0;font-size:1.18rem;font-weight:750}.bi-section p{color:#74849a;font-size:.85rem;margin:4px 0 0}
+.bi-table-wrap{overflow-x:auto;border:1px solid #e1e8f1;border-radius:16px;background:white;box-shadow:0 6px 20px rgba(20,48,80,.04)}
+.bi-table{width:100%;border-collapse:separate;border-spacing:0;min-width:820px;font-size:12px}
+.bi-table th{background:#f1f5fa;color:#61738b;text-transform:uppercase;font-size:10px;letter-spacing:.065em;text-align:left;padding:13px 14px;white-space:nowrap;border-bottom:1px solid #e2e9f1}
+.bi-table td{padding:13px 14px;border-bottom:1px solid #edf1f6;vertical-align:middle;color:#233852}
+.bi-table tbody tr:nth-child(even){background:#fbfcfe}.bi-table tbody tr:hover{background:#f0f6ff}.bi-table tbody tr:last-child td{border-bottom:0}
+.bi-name{font-weight:700;color:#173456}.bi-sub{color:#8290a2;font-size:11px;margin-top:4px}
+.bi-route{display:flex;flex-direction:column;gap:7px;min-width:235px;max-width:640px}
+.bi-route-line{display:flex;align-items:baseline;gap:8px}.bi-route-line span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;max-width:580px}
+.bi-dot{color:#12a67b;font-size:15px}.bi-pin{color:#ef6574;font-size:15px}
+.bi-money{font-weight:750;color:#173f70;white-space:nowrap}
+.bi-action{display:inline-block;padding:7px 10px;border:1px solid #dce7f8;border-radius:8px;background:#f3f7ff;color:#1c5caf!important;text-decoration:none!important;font-size:11px;font-weight:700;white-space:nowrap;margin:2px}
+.bi-action:hover{background:#dfeaff}.bi-muted{color:#8492a3}.bi-pill{display:inline-block;border-radius:20px;background:#eaf3ff;color:#2863aa;padding:4px 9px;font-weight:700}
+/* Cartão e tabela de viagens no padrão executivo compacto */
+.bi-table-wrap{border:0;border-radius:0;box-shadow:none;overflow-x:auto}
+.bi-table{min-width:0;width:100%;table-layout:fixed;font-size:12px}
+.bi-table th{background:#fff;color:#7a8390;font-size:10px;padding:12px 10px;border-bottom:1px solid #e6e9ed}
+.bi-table td{padding:15px 10px;border-bottom:1px solid #e9edf2}
+.bi-table tbody tr:nth-child(even){background:#fff}
+.bi-table tbody tr:hover{background:#f6f9ff}
+.bi-table th:first-child,.bi-table td:first-child{width:23%}
+.bi-table th:nth-child(2),.bi-table td:nth-child(2){width:51%}
+.bi-table th:nth-child(3),.bi-table td:nth-child(3){width:13%}
+.bi-table th:nth-child(4),.bi-table td:nth-child(4){width:13%}
+.bi-name{font-size:11px;color:#243347}
+.bi-route{min-width:0;max-width:100%;gap:7px}
+.bi-route-line{align-items:center;min-width:0;gap:7px}
+.bi-route-line span:last-child{max-width:100%;font-size:11px}
+.bi-map-actions{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.bi-icon-link{display:inline-flex;align-items:center;justify-content:center;min-width:25px;height:27px;border-radius:7px;text-decoration:none!important;color:#2563eb!important;font-size:17px;font-weight:700}
+.bi-icon-link:hover{background:#eaf2ff}
+.bi-money{font-size:12px}
+.bi-card-head{background:white;border:1px solid #e1e7ef;border-radius:17px;padding:16px 18px 10px;margin-top:12px}
+.bi-card-title{font-size:18px;font-weight:750;color:#1d304a}
+.bi-card-sub{font-size:12px;color:#7a889b;margin-top:3px}
+.bi-card-count{background:#dff7e9;color:#17834c;padding:5px 10px;border-radius:30px;font-size:11px;font-weight:700}
+@media(max-width:900px){.bi-table{min-width:620px}}
 </style>""",unsafe_allow_html=True)
+
+def section(title, description=''):
+    st.markdown(f'<div class="bi-section"><h3>{html.escape(title)}</h3><p>{html.escape(description)}</p></div>',unsafe_allow_html=True)
+
+def maps_url(address):
+    address=str(address).strip()
+    if not address or address.casefold() in ('nan','não informado','nao informado'):return None
+    return 'https://www.google.com/maps/search/?api=1&query='+quote(address,safe='')
+
+def directions_url(origin,destination):
+    if not maps_url(origin) or not maps_url(destination):return None
+    return 'https://www.google.com/maps/dir/?api=1&origin='+quote(str(origin),safe='')+'&destination='+quote(str(destination),safe='')
+
+def short_address(address,limit=85):
+    s=str(address).strip()
+    return s if len(s)<=limit else s[:limit-1].rstrip()+'…'
+
+def map_link(url,label,icon='↗'):
+    if not url:return '<span class="bi-muted">—</span>'
+    return f'<a class="bi-icon-link" href="{html.escape(url,quote=True)}" target="_blank" rel="noopener noreferrer" title="{html.escape(label,quote=True)}" aria-label="{html.escape(label,quote=True)}">{icon}</a>'
+
+def route_cell(origin,destination):
+    return (f'<div class="bi-route"><div class="bi-route-line"><span class="bi-dot">●</span><span title="{html.escape(str(origin),quote=True)}">{html.escape(short_address(origin,58))}</span></div>'
+            f'<div class="bi-route-line"><span class="bi-pin">●</span><span title="{html.escape(str(destination),quote=True)}">{html.escape(short_address(destination,58))}</span></div></div>')
+
+def render_table(headers,rows):
+    if not rows:st.info('Nenhuma viagem encontrada.');return
+    head=''.join('<th>'+html.escape(str(h))+'</th>' for h in headers)
+    body=''.join('<tr>'+''.join('<td>'+str(c)+'</td>' for c in row)+'</tr>' for row in rows)
+    st.markdown('<div class="bi-table-wrap"><table class="bi-table"><thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody></table></div>',unsafe_allow_html=True)
+
+def maps_actions(origin,dest):
+    return ('<div class="bi-map-actions">'+map_link(maps_url(origin),'Abrir origem no Google Maps','⌖')+
+            map_link(maps_url(dest),'Abrir destino no Google Maps','◉')+
+            map_link(directions_url(origin,dest),'Abrir rota completa no Google Maps','↗')+'</div>')
+
 BRL=lambda v: f'R$ {v:,.2f}'.replace(',','X').replace('.',',').replace('X','.')
 NUM=lambda v: f'{v:,.0f}'.replace(',','.')
 MES={1:'Jan',2:'Fev',3:'Mar',4:'Abr',5:'Mai',6:'Jun',7:'Jul',8:'Ago',9:'Set',10:'Out',11:'Nov',12:'Dez'}
@@ -184,52 +255,45 @@ with v3:
                 'Participação no mês (%)':st.column_config.ProgressColumn('Participação no mês',format='%.1f%%',min_value=0,max_value=100)
             })
 with v4:
-    st.subheader('Consulta individual de viagens')
-    person=st.selectbox('Escolha um usuário', ['Todos os usuários']+sorted(trips['Usuário'].unique().tolist()))
+    section('Consulta individual de viagens','Selecione um colaborador, pesquise endereços e abra os locais ou o trajeto completo no Google Maps.')
+    person=st.selectbox('Colaborador', ['Todos os usuários']+sorted(trips['Usuário'].unique().tolist()))
     detail=trips if person=='Todos os usuários' else trips[trips['Usuário']==person]
-    p,q,r=st.columns(3)
-    p.metric('Total do filtro',BRL(detail['Valor'].sum()));q.metric('Viagens do filtro',NUM(len(detail)));r.metric('Ticket do filtro',BRL(detail['Valor'].mean() if len(detail) else 0))
-    search=st.text_input('Buscar endereço de origem ou destino',placeholder='Ex.: SIA, Sofnorte, Ceilândia...')
+    search=st.text_input('Pesquisar origem ou destino',placeholder='Ex.: SIA, Sofnorte, Ceilândia...')
     if search:
         detail=detail[detail['Origem'].str.contains(search,case=False,na=False,regex=False)|detail['Destino'].str.contains(search,case=False,na=False,regex=False)]
-    show=detail[['Data','Hora','Usuário','Origem','Destino','Cidade','Serviço','Valor']].sort_values(['Data','Hora'],ascending=False).copy()
-    show['Data']=show['Data'].dt.strftime('%d/%m/%Y');show['Valor']=show['Valor'].map(BRL)
-    # Links de pesquisa do Google Maps para abrir o endereço em uma nova guia.
-    # A busca é textual; o ponto exato depende da precisão do endereço fornecido pelo Uber.
-    def maps_url(address):
-        address=str(address).strip()
-        if not address or address.casefold() in ('nan','não informado','nao informado'):
-            return None
-        return 'https://www.google.com/maps/search/?api=1&query='+quote(address,safe='')
-    show['Mapa origem']=detail.loc[show.index,'Origem'].map(maps_url)
-    show['Mapa destino']=detail.loc[show.index,'Destino'].map(maps_url)
-    st.caption('Endereços com acesso ao Google Maps. Clique em **📍 Origem** ou **📍 Destino**.')
-    st.dataframe(show,use_container_width=True,hide_index=True,height=480,column_config={
-        'Data':st.column_config.TextColumn('Data',width='small'),
-        'Hora':st.column_config.TextColumn('Hora',width='small'),
-        'Usuário':st.column_config.TextColumn('Colaborador',width='medium'),
-        'Origem':st.column_config.TextColumn('📍 Endereço de origem',width='large'),
-        'Destino':st.column_config.TextColumn('🏁 Endereço de destino',width='large'),
-        'Valor':st.column_config.TextColumn('Valor da viagem',width='small'),
-        'Mapa origem':st.column_config.LinkColumn('📍 Origem',display_text='Abrir mapa',width='small'),
-        'Mapa destino':st.column_config.LinkColumn('📍 Destino',display_text='Abrir mapa',width='small')
-    })
-    st.subheader('Trajetos mais recorrentes')
+    p,q,r=st.columns(3)
+    p.metric('Gasto nas viagens',BRL(detail['Valor'].sum()))
+    q.metric('Viagens encontradas',NUM(len(detail)))
+    r.metric('Ticket médio',BRL(detail['Valor'].mean() if len(detail) else 0))
+    st.markdown(f'<div class="bi-card-head"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div><div class="bi-card-title">Detalhamento de viagens</div><div class="bi-card-sub">Consulta de viagens e localização dos trajetos</div></div><span class="bi-card-count">{len(detail)} viagens</span></div></div>',unsafe_allow_html=True)
+    ordered=detail.sort_values(['Data','Hora'],ascending=False)
+    col_search,col_export=st.columns([5,1])
+    with col_search:
+        table_search=st.text_input('Buscar usuário ou endereço na tabela',placeholder='Buscar usuário ou endereço...',key='table_search')
+    if table_search:
+        mask=(ordered['Usuário'].str.contains(table_search,case=False,na=False,regex=False)|ordered['Origem'].str.contains(table_search,case=False,na=False,regex=False)|ordered['Destino'].str.contains(table_search,case=False,na=False,regex=False))
+        ordered=ordered[mask]
+    with col_export:
+        st.write('')
+        st.download_button('⬇ Excel',excel_bytes({'Viagens':ordered[['Data','Hora','Usuário','Origem','Destino','Serviço','Tipo','Valor']]}),'viagens_detalhadas.xlsx',mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',use_container_width=True)
+    per_page=20
+    pages=max(1,(len(ordered)+per_page-1)//per_page)
+    pg=st.number_input('Página das viagens',min_value=1,max_value=pages,value=1,step=1,key='page_trips')
+    page=ordered.iloc[(pg-1)*per_page:pg*per_page]
+    rows=[]
+    for _,r in page.iterrows():
+        origin,dest=r['Origem'],r['Destino']
+        rows.append(['<div class="bi-name">'+html.escape(str(r['Usuário']))+'</div><div class="bi-sub">'+r['Data'].strftime('%d/%m/%Y')+' · '+html.escape(str(r['Hora']))+'</div>',
+            route_cell(origin,dest),'<span class="bi-money">'+BRL(r['Valor'])+'</span>',maps_actions(origin,dest)])
+    render_table(['COLABORADOR','TRAJETO','VALOR','MAPA'],rows)
+    st.caption(f'Exibindo {len(page)} de {len(ordered)} viagens · Página {pg} de {pages}. Ícones: origem, destino e rota completa. Passe o cursor no endereço para vê-lo completo.')
+    section('Trajetos mais recorrentes','Ranking de rotas por frequência, com localização e rota completa no Google Maps.')
     routes=detail.groupby(['Origem','Destino'],as_index=False).agg(Viagens=('Valor','size'),Gasto=('Valor','sum'),Ticket_médio=('Valor','mean')).sort_values(['Viagens','Gasto'],ascending=False).head(25)
-    routes['Mapa origem']=routes['Origem'].map(maps_url)
-    routes['Mapa destino']=routes['Destino'].map(maps_url)
-    routes=routes.rename(columns={'Ticket_médio':'Ticket médio'})
-    st.caption('Ranking de rotas por frequência. Os botões de mapa abrem cada endereço no Google Maps.')
-    st.dataframe(routes,use_container_width=True,hide_index=True,height=460,column_config={
-        'Origem':st.column_config.TextColumn('📍 Origem',width='large'),
-        'Destino':st.column_config.TextColumn('🏁 Destino',width='large'),
-        'Viagens':st.column_config.NumberColumn('Viagens',format='%d',width='small'),
-        'Gasto':st.column_config.NumberColumn('Gasto total',format='R$ %.2f',width='small'),
-        'Ticket médio':st.column_config.NumberColumn('Ticket médio',format='R$ %.2f',width='small'),
-        'Mapa origem':st.column_config.LinkColumn('📍 Mapa origem',display_text='Ver mapa',width='small'),
-        'Mapa destino':st.column_config.LinkColumn('📍 Mapa destino',display_text='Ver mapa',width='small')
-    })
-    st.download_button('⬇️ Baixar viagens exibidas (Excel)',excel_bytes({'Viagens':detail[['Data','Hora','Usuário','Origem','Destino','Serviço','Tipo','Valor']]}),'viagens_detalhadas.xlsx',mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    route_rows=[]
+    for i,(_,r) in enumerate(routes.iterrows(),1):
+        origin,dest=r['Origem'],r['Destino']
+        route_rows.append(['<span class="bi-pill">#'+str(i)+'</span>',route_cell(origin,dest),'<strong>'+NUM(r['Viagens'])+' viagens</strong><div class="bi-sub">'+BRL(r['Gasto'])+' · média '+BRL(r['Ticket_médio'])+'</div>',maps_actions(origin,dest)])
+    render_table(['POSIÇÃO','TRAJETO','GASTO / VIAGENS','MAPA'],route_rows)
 with v5:
     st.subheader('Exportar análise completa')
     st.write('O Excel reúne resumo mensal, usuários, usuário por mês, viagens e transações de ajuste.')
