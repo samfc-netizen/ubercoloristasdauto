@@ -82,14 +82,14 @@ st.caption('ÚNICA ATACADISTA  /  Gestão de mobilidade corporativa  /  Relatór
 with st.sidebar:
     st.header('⚙️ Fonte de dados')
     uploaded=st.file_uploader('Importar relatórios Uber CSV',type=['csv'],accept_multiple_files=True,help='Aceita vários arquivos; consolida e remove transações duplicadas.')
-    st.caption('Para carregar dados automaticamente no Streamlit Cloud, coloque os arquivos CSV na pasta dados_viagens do repositório.')
-    data_dir=Path(__file__).resolve().parent / 'dados_viagens'
+    st.caption('Para carregar dados automaticamente no Streamlit Cloud, coloque os arquivos CSV no diretório principal do repositório, nomeados 1.csv, 2.csv, 3.csv etc.')
+    data_dir=Path(__file__).resolve().parent
     local=sorted(data_dir.glob('*.csv'), key=lambda p:(0,int(p.stem)) if p.stem.isdigit() else (1,p.name.lower())) if data_dir.exists() else []
     files=local+list(uploaded or [])
     st.caption(f'{len(local)} arquivo(s) CSV no repositório. Arquivos enviados aqui são somados à base, com remoção de duplicatas.')
     df=load_files(files) if files else pd.DataFrame()
     if df.empty:
-        st.info('Importe os dois arquivos CSV no menu lateral para iniciar a análise. Você também pode deixar os arquivos na pasta dados_viagens para carregamento automático.')
+        st.info('Importe os dois arquivos CSV no menu lateral para iniciar a análise. Você também pode deixar os arquivos CSV no diretório principal para carregamento automático.')
         st.stop()
     st.success(f'{NUM(len(df))} transações únicas carregadas')
     st.header('🔎 Filtros')
