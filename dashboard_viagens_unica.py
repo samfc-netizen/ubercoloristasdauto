@@ -130,17 +130,24 @@ def load_files(files):
     required=['Data da solicitação (UTC)','Nome','Sobrenome','Valor da transação: BRL','Tipo de transação']
     missing=[c for c in required if c not in df.columns]
     if missing: st.error('Colunas ausentes: '+', '.join(missing));return pd.DataFrame()
-    # Converte data e hora UTC para horário de Brasília (UTC-3),
-    # incluindo a mudança de dia quando o horário UTC é anterior às 03:00.
+    # A Uber exporta horários UTC em formatos como 12:11PM e 3:16PM.
+    # Interpretar AM/PM antes de aplicar UTC-3 evita manter o horário original.
     data_utc = pd.to_datetime(df['Data da solicitação (UTC)'], format='%m/%d/%Y', errors='coerce')
     hora_utc = df.get('Hora da solicitação (UTC)', pd.Series('', index=df.index)).fillna('').astype(str).str.strip()
-    duracao = pd.to_timedelta(hora_utc, errors='coerce')
-    instante_local = data_utc + duracao - pd.Timedelta(hours=3)
-    df['Data'] = instante_local.dt.normalize().where(duracao.notna(), data_utc)
-    df['Hora'] = instante_local.dt.strftime('%H:%M:%S').where(duracao.notna(), hora_utc)
-    # Mantém o formato HH:MM quando a origem não informa segundos.
-    sem_segundos = hora_utc.str.fullmatch(r'\d{1,2}:\d{2}')
-    df.loc[sem_segundos & duracao.notna(), 'Hora'] = instante_local.dt.strftime('%H:%M').loc[sem_segundos & duracao.notna()]
+    hora_limpa = hora_utc.str.upper().str.replace(r'\s+', '', regex=True).str.replace('.', '', regex=False)
+    hora_parseada = pd.Series(pd.NaT, index=df.index, dtype='datetime64[ns]')
+    for formato in ('%I:%M%p', '%I:%M:%S%p', '%H:%M', '%H:%M:%S'):
+        tentativa = pd.to_datetime(hora_limpa, format=formato, errors='coerce')
+        hora_parseada = hora_parseada.fillna(tentativa)
+    hora_valida = hora_parseada.notna()
+    deslocamento = (pd.to_timedelta(hora_parseada.dt.hour.fillna(0), unit='h')
+                    + pd.to_timedelta(hora_parseada.dt.minute.fillna(0), unit='m')
+                    + pd.to_timedelta(hora_parseada.dt.second.fillna(0), unit='s'))
+    instante_local = data_utc + deslocamento - pd.Timedelta(hours=3)
+    df['Data'] = instante_local.dt.normalize().where(hora_valida, data_utc)
+    df['Hora'] = instante_local.dt.strftime('%H:%M').where(hora_valida, hora_utc)
+    com_segundos = hora_limpa.str.match(r'^\d{1,2}:\d{2}:\d{2}') & hora_valida
+    df.loc[com_segundos, 'Hora'] = instante_local.dt.strftime('%H:%M:%S').loc[com_segundos]
     df['Usuário']=(df['Nome'].fillna('')+' '+df['Sobrenome'].fillna('')).map(norm)
     df['Valor']=pd.to_numeric(df['Valor da transação: BRL'].fillna('').str.replace(',','.',regex=False),errors='coerce')
     for orig,new in [('Endereço de partida','Origem'),('Endereço de destino','Destino'),('Serviço','Serviço'),('Cidade','Cidade')]:
