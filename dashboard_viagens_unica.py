@@ -130,8 +130,17 @@ def load_files(files):
     required=['Data da solicitação (UTC)','Nome','Sobrenome','Valor da transação: BRL','Tipo de transação']
     missing=[c for c in required if c not in df.columns]
     if missing: st.error('Colunas ausentes: '+', '.join(missing));return pd.DataFrame()
-    df['Data']=pd.to_datetime(df['Data da solicitação (UTC)'],format='%m/%d/%Y',errors='coerce')
-    df['Hora']=df.get('Hora da solicitação (UTC)',pd.Series('',index=df.index)).fillna('')
+    # Converte data e hora UTC para horário de Brasília (UTC-3),
+    # incluindo a mudança de dia quando o horário UTC é anterior às 03:00.
+    data_utc = pd.to_datetime(df['Data da solicitação (UTC)'], format='%m/%d/%Y', errors='coerce')
+    hora_utc = df.get('Hora da solicitação (UTC)', pd.Series('', index=df.index)).fillna('').astype(str).str.strip()
+    duracao = pd.to_timedelta(hora_utc, errors='coerce')
+    instante_local = data_utc + duracao - pd.Timedelta(hours=3)
+    df['Data'] = instante_local.dt.normalize().where(duracao.notna(), data_utc)
+    df['Hora'] = instante_local.dt.strftime('%H:%M:%S').where(duracao.notna(), hora_utc)
+    # Mantém o formato HH:MM quando a origem não informa segundos.
+    sem_segundos = hora_utc.str.fullmatch(r'\d{1,2}:\d{2}')
+    df.loc[sem_segundos & duracao.notna(), 'Hora'] = instante_local.dt.strftime('%H:%M').loc[sem_segundos & duracao.notna()]
     df['Usuário']=(df['Nome'].fillna('')+' '+df['Sobrenome'].fillna('')).map(norm)
     df['Valor']=pd.to_numeric(df['Valor da transação: BRL'].fillna('').str.replace(',','.',regex=False),errors='coerce')
     for orig,new in [('Endereço de partida','Origem'),('Endereço de destino','Destino'),('Serviço','Serviço'),('Cidade','Cidade')]:
@@ -302,4 +311,4 @@ with v5:
     st.subheader('Conferência de ajustes e reembolsos')
     st.metric('Ajustes (líquido)',BRL(adjustments['Valor'].sum()))
     if not adjustments.empty:st.dataframe(adjustments[['Data','Usuário','Tipo','Valor','_arquivo']],use_container_width=True,hide_index=True)
-    st.caption('Fonte: arquivos CSV importados. Datas e horários mantidos em UTC conforme relatório de origem. Viagens são linhas Fare; demais tipos são ajustes. Não representa necessariamente viagens únicas caso o provedor gere múltiplos lançamentos Fare por corrida.')
+    st.caption('Fonte: arquivos CSV importados. Datas e horários convertidos de UTC para Brasília (UTC−3), inclusive quando ocorre mudança de dia. Viagens são linhas Fare; demais tipos são ajustes. Não representa necessariamente viagens únicas caso o provedor gere múltiplos lançamentos Fare por corrida.')
