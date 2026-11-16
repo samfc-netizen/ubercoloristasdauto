@@ -104,6 +104,10 @@ def maps_actions(origin,dest):
 BRL=lambda v: f'R$ {v:,.2f}'.replace(',','X').replace('.',',').replace('X','.')
 NUM=lambda v: f'{v:,.0f}'.replace(',','.')
 MES={1:'Jan',2:'Fev',3:'Mar',4:'Abr',5:'Mai',6:'Jun',7:'Jul',8:'Ago',9:'Set',10:'Out',11:'Nov',12:'Dez'}
+MESES_COMPLETOS={1:'Janeiro',2:'Fevereiro',3:'Março',4:'Abril',5:'Maio',6:'Junho',7:'Julho',8:'Agosto',9:'Setembro',10:'Outubro',11:'Novembro',12:'Dezembro'}
+def mes_extenso(periodo):
+    ano, mes = map(int, str(periodo).split('-'))
+    return f'{MESES_COMPLETOS[mes]} {ano}'
 
 def norm(s):
     s=unicodedata.normalize('NFKD',str(s)).encode('ascii','ignore').decode().upper()
@@ -222,7 +226,13 @@ with v1:
     x,y=st.columns([1.4,1])
     with x:
         st.subheader('Evolução mensal de despesas')
-        if not monthly.empty:plot(px.bar(monthly,x='Mês',y='Valor',text='Valor',color_discrete_sequence=['#46a9ff'],labels={'Valor':'Gasto (R$)'}))
+        if not monthly.empty:
+            fig_mensal = px.bar(monthly, x='Mês', y='Valor', text=monthly['Valor'].map(BRL),
+                                color_discrete_sequence=['#46a9ff'], labels={'Valor':'Gasto (R$)'})
+            fig_mensal.update_traces(textposition='outside', cliponaxis=False,
+                                     hovertemplate='Mês: %{x}<br>Gasto: %{text}<extra></extra>')
+            fig_mensal.update_layout(yaxis_tickprefix='R$ ', yaxis_tickformat=',.2f')
+            plot(fig_mensal)
     with y:
         st.subheader('Participação dos usuários')
         if not byuser.empty:plot(px.pie(byuser.head(10),names='Usuário',values='Valor',hole=.63))
@@ -253,14 +263,18 @@ with v3:
     st.subheader('Matriz de gastos: mês × usuário')
     if not user_month.empty:
         matrix=user_month.pivot(index='Usuário',columns='Mês',values='Valor').fillna(0)
+        matrix.columns=[mes_extenso(m) for m in matrix.columns]
         plot(px.imshow(matrix,text_auto='.0f',aspect='auto',color_continuous_scale='Blues',labels={'color':'R$'}),max(350,40*len(matrix)+130))
         st.dataframe(matrix.style.format(BRL),use_container_width=True)
         st.subheader('Comparativo mensal por colaborador')
-        plot(px.bar(user_month,x='Mês',y='Valor',color='Usuário',barmode='group'),480)
+        comparativo=user_month.copy()
+        comparativo['Mês']=comparativo['Mês'].map(mes_extenso)
+        plot(px.bar(comparativo,x='Mês',y='Valor',color='Usuário',barmode='group'),480)
         st.subheader('Indicadores por usuário e mês')
         v=user_month.rename(columns={'Mês':'Mês','Usuário':'Usuário','Valor':'Gasto total','Viagens':'Nº de viagens'}).copy()
         v['Participação no mês (%)']=v['Gasto total']/v.groupby('Mês')['Gasto total'].transform('sum').replace(0,np.nan)*100
         v=v[['Mês','Usuário','Nº de viagens','Gasto total','Ticket médio','Participação no mês (%)']].sort_values(['Mês','Gasto total'],ascending=[False,False])
+        v['Mês']=v['Mês'].map(mes_extenso)
         st.dataframe(v,use_container_width=True,hide_index=True,height=510,
             column_config={
                 'Mês':st.column_config.TextColumn('Mês',width='small'),
